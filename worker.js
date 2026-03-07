@@ -14,11 +14,11 @@ export default {
 
     if (url.pathname === "/test-order") {
 
-      await env.ORDERS.put("order_001", "test order")
+      await env.PESANAN.put("order001", "order test")
 
-      const data = await env.ORDERS.get("order_001")
+      const data = await env.PESANAN.get("order001")
 
-      return new Response("Order data: " + data)
+      return new Response("Data order: " + data)
 
     }
 
