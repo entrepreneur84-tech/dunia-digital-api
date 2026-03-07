@@ -1,17 +1,5 @@
 name = "dunia-digital-api"
 main = "worker.js"
-compatibility_date = "2026-03-07"
+compatibility_date = "2026-03-08"
 
 workers_dev = true
-
-[[kv_namespaces]]
-binding = "LICENSES"
-id = "licenses-kv"
-
-[[kv_namespaces]]
-binding = "ORDERS"
-id = "orders-kv"
-
-[[kv_namespaces]]
-binding = "DOWNLOADS"
-id = "downloads-kv"
