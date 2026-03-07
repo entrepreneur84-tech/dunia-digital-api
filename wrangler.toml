@@ -1,5 +1,5 @@
 name = "dunia-digital-api"
 main = "worker.js"
-compatibility_date = "2026-03-08"
+compatibility_date = "2024-12-01"
 
 workers_dev = true
