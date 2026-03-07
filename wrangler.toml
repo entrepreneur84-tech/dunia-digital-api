@@ -4,11 +4,6 @@ compatibility_date = "2026-03-07"
 
 workers_dev = true
 
-# Domain Worker
-route = ""
-zone_id = ""
-
-# KV Namespace Bindings
 [[kv_namespaces]]
 binding = "LICENSES"
 id = "licenses-kv"
@@ -20,15 +15,3 @@ id = "orders-kv"
 [[kv_namespaces]]
 binding = "DOWNLOADS"
 id = "downloads-kv"
-
-# Environment Variables
-[vars]
-APP_NAME = "Dunia Digital API"
-APP_ENV = "production"
-
-# Limits
-usage_model = "bundled"
-
-# Observability
-[observability]
-enabled = true
