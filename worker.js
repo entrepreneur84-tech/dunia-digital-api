@@ -1,129 +1,169 @@
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url)
 
-    // =======================
-    // Health check
-    // =======================
-    if (url.pathname === "/health") {
-      return new Response(JSON.stringify({
-        status: "ok",
-        service: "dunia-digital-api"
-      }), { headers: { "Content-Type": "application/json" }})
+    const url = new URL(request.url);
+
+    // ==============================
+    // CREATE ORDER
+    // ==============================
+
+    if (url.pathname === "/create-order" && request.method === "POST") {
+
+      const data = await request.json();
+
+      const orderId = "order_" + Date.now();
+
+      const order = {
+
+        orderId,
+        email: data.email,
+        productId: data.productId,
+        fileId: data.fileId,
+        status: "pending",
+        createdAt: Date.now()
+
+      };
+
+      await env.ORDERS.put(orderId, JSON.stringify(order));
+
+      return Response.json({
+        sukses: true,
+        orderId
+      });
+
     }
 
-    // =======================
-    // Test KV order
-    // =======================
-    if (url.pathname === "/test-order") {
-      try {
-        await env.ORDERS.put("order001", "order test")
-        const data = await env.ORDERS.get("order001")
-        return new Response("Data order: " + data)
-      } catch (err) {
-        return new Response(JSON.stringify({success: false, error: err.message}), {
-          headers: { "Content-Type": "application/json" },
-          status: 500
-        })
+    // ==============================
+    // ACTIVATE LICENSE (setelah bayar)
+    // ==============================
+
+    if (url.pathname === "/activate-license" && request.method === "POST") {
+
+      const data = await request.json();
+
+      const order = await env.ORDERS.get(data.orderId, "json");
+
+      if (!order) {
+        return new Response("Order tidak ditemukan", { status: 404 });
       }
+
+      const licenseId = "license_" + crypto.randomUUID();
+
+      const token = "token_" + crypto.randomUUID();
+
+      const license = {
+
+        licenseId,
+        email: order.email,
+        productId: order.productId,
+        fileId: order.fileId,
+
+        downloadLimit: 3,
+        downloadCount: 0,
+
+        expireAt: Date.now() + (3 * 24 * 60 * 60 * 1000),
+
+        createdAt: Date.now()
+
+      };
+
+      await env.LICENSES.put(licenseId, JSON.stringify(license));
+
+      await env.LICENSES.put(token, licenseId);
+
+      order.status = "paid";
+
+      await env.ORDERS.put(order.orderId, JSON.stringify(order));
+
+      return Response.json({
+
+        sukses: true,
+
+        downloadUrl:
+          url.origin + "/download?token=" + token
+
+      });
+
     }
 
-    // =======================
-    // Create Order
-    // =======================
-    if (url.pathname === "/create-order") {
-      try {
-        const orderId = "order_" + Date.now()
-        await env.ORDERS.put(orderId, JSON.stringify({status: "new", created: Date.now()}))
-        return new Response(JSON.stringify({success: true, orderId}), {
-          headers: { "Content-Type": "application/json" }
-        })
-      } catch (err) {
-        return new Response(JSON.stringify({success: false, error: err.message}), {
-          headers: { "Content-Type": "application/json" },
-          status: 500
-        })
-      }
-    }
+    // ==============================
+    // DOWNLOAD EBOOK
+    // ==============================
 
-    // =======================
-    // Generate License
-    // =======================
-    if (url.pathname === "/generate-license") {
-      try {
-        const params = url.searchParams
-        const orderId = params.get("orderId")
-        if (!orderId) throw new Error("orderId required")
-        
-        const licenseKey = "LIC-" + Math.random().toString(36).substring(2, 12).toUpperCase()
-        await env.LICENSES.put(licenseKey, JSON.stringify({orderId, created: Date.now(), status: "active"}))
-        return new Response(JSON.stringify({success: true, licenseKey}), {
-          headers: { "Content-Type": "application/json" }
-        })
-      } catch (err) {
-        return new Response(JSON.stringify({success: false, error: err.message}), {
-          headers: { "Content-Type": "application/json" },
-          status: 500
-        })
-      }
-    }
-
-    // =======================
-    // Verify License
-    // =======================
-    if (url.pathname === "/verify-license") {
-      try {
-        const params = url.searchParams
-        const licenseKey = params.get("license")
-        if (!licenseKey) throw new Error("license required")
-        
-        const data = await env.LICENSES.get(licenseKey, { type: "json" })
-        if (!data) return new Response(JSON.stringify({valid: false}), { headers: { "Content-Type": "application/json" }})
-        
-        return new Response(JSON.stringify({valid: true, license: data}), { headers: { "Content-Type": "application/json" }})
-      } catch (err) {
-        return new Response(JSON.stringify({success: false, error: err.message}), {
-          headers: { "Content-Type": "application/json" },
-          status: 500
-        })
-      }
-    }
-
-    // =======================
-    // Download
-    // =======================
     if (url.pathname === "/download") {
-      try {
-        const params = url.searchParams
-        const licenseKey = params.get("license")
-        if (!licenseKey) throw new Error("license required")
-        
-        const license = await env.LICENSES.get(licenseKey, { type: "json" })
-        if (!license || license.status !== "active") throw new Error("Invalid license")
-        
-        const fileId = params.get("file")
-        if (!fileId) throw new Error("file id required")
-        
-        const fileData = await env.DOWNLOADS.get(fileId)
-        if (!fileData) throw new Error("File not found")
-        
-        return new Response(fileData, {
-          headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename="${fileId}.pdf"`
-          }
-        })
-      } catch (err) {
-        return new Response(JSON.stringify({success: false, error: err.message}), {
-          headers: { "Content-Type": "application/json" },
-          status: 400
-        })
+
+      const token = url.searchParams.get("token");
+
+      if (!token) {
+        return new Response("Token tidak ada", { status: 400 });
       }
+
+      const licenseId = await env.LICENSES.get(token);
+
+      if (!licenseId) {
+        return new Response("Token tidak valid", { status: 403 });
+      }
+
+      const license = await env.LICENSES.get(licenseId, "json");
+
+      if (!license) {
+        return new Response("License tidak ditemukan", { status: 404 });
+      }
+
+      if (Date.now() > license.expireAt) {
+        return new Response("Link download expired", { status: 403 });
+      }
+
+      if (license.downloadCount >= license.downloadLimit) {
+        return new Response("Batas download habis", { status: 403 });
+      }
+
+      const pdf = await env.DOWNLOADS.get(license.fileId, "arrayBuffer");
+
+      if (!pdf) {
+        return new Response("File ebook tidak ditemukan", { status: 404 });
+      }
+
+      license.downloadCount++;
+
+      await env.LICENSES.put(
+        licenseId,
+        JSON.stringify(license)
+      );
+
+      return new Response(pdf, {
+
+        headers: {
+
+          "Content-Type": "application/pdf",
+          "Content-Disposition":
+            `attachment; filename="${license.fileId}.pdf"`
+
+        }
+
+      });
+
     }
 
-    // =======================
-    // Default response
-    // =======================
-    return new Response("Dunia Digital API aktif")
+    // ==============================
+    // CEK ORDER
+    // ==============================
+
+    if (url.pathname === "/check-order") {
+
+      const orderId = url.searchParams.get("orderId");
+
+      const order = await env.ORDERS.get(orderId, "json");
+
+      if (!order) {
+        return new Response("Order tidak ditemukan", { status: 404 });
+      }
+
+      return Response.json(order);
+
+    }
+
+    return new Response("Dunia Digital API aktif 🚀");
+
   }
-}
+};
