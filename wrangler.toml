@@ -1,17 +1,7 @@
-name = "dunia-digital-api"
-main = "worker.js"
-compatibility_date = "2024-12-01"
-
-workers_dev = true
-
 [[kv_namespaces]]
 binding = "ORDERS"
-id = "4f8c8ffa5ac24a69a45ddfb1dbaa46f4"
-
-[[kv_namespaces]]
-binding = "LICENSES"
-id = "a5673cb0005643368df70a353d83a5cf"
+id = "dunia-digital-orders"
 
 [[kv_namespaces]]
 binding = "DOWNLOADS"
-id = "71bd6668c90d4e618c013fcb52ef8162"
+id = "dunia-digital-downloads"
